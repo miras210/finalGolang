@@ -24,9 +24,6 @@ func (app *application) showComicsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create a new instance of the Comics struct, containing the ID we extracted from
-	// the URL and some dummy data. Also notice that we deliberately haven't set a
-	// value for the Year field.
 	comics := data.Comics{
 		ID:        id,
 		CreatedAt: time.Now(),
@@ -34,8 +31,8 @@ func (app *application) showComicsHandler(w http.ResponseWriter, r *http.Request
 		Pages:     165,
 		Version:   1,
 	}
-	// Encode the struct to JSON and send it as the HTTP response.
-	err = app.writeJSON(w, http.StatusOK, comics, nil)
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"comics": comics}, nil)
 	if err != nil {
 		app.logger.Println(err)
 		http.Error(w, "The server encountered a problem and could not process your request", http.StatusInternalServerError)

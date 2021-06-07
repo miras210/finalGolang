@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/miras210/finalGolang/internal/data"
 	"net/http"
+	"time"
 )
 
 // Add a createComicsHandler for the "POST /v1/comics" endpoint. For now we simply
@@ -22,5 +24,20 @@ func (app *application) showComicsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	fmt.Fprintf(w, "show the details of comics %d\n", id)
+	// Create a new instance of the Comics struct, containing the ID we extracted from
+	// the URL and some dummy data. Also notice that we deliberately haven't set a
+	// value for the Year field.
+	comics := data.Comics{
+		ID:        id,
+		CreatedAt: time.Now(),
+		Title:     "Batman",
+		Pages:     165,
+		Version:   1,
+	}
+	// Encode the struct to JSON and send it as the HTTP response.
+	err = app.writeJSON(w, http.StatusOK, comics, nil)
+	if err != nil {
+		app.logger.Println(err)
+		http.Error(w, "The server encountered a problem and could not process your request", http.StatusInternalServerError)
+	}
 }

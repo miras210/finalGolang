@@ -12,9 +12,9 @@ import (
 func (app *application) createComicsHandler(w http.ResponseWriter, r *http.Request) {
 
 	var input struct {
-		Title string `json:"title"`
-		Year  int32  `json:"year"`
-		Pages int32  `json:"runtime"`
+		Title string     `json:"title"`
+		Year  int32      `json:"year"`
+		Pages data.Pages `json:"runtime"`
 	}
 
 	err := app.readJSON(w, r, &input)

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/miras210/finalGolang/internal/data"
+	"github.com/miras210/finalGolang/internal/validator"
 	"net/http"
 	"time"
 )
@@ -20,6 +21,19 @@ func (app *application) createComicsHandler(w http.ResponseWriter, r *http.Reque
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	comics := &data.Comics{
+		Title: input.Title,
+		Year:  input.Year,
+		Pages: input.Pages,
+	}
+
+	v := validator.New()
+
+	if data.ValidateComics(v, comics); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 

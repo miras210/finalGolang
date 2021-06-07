@@ -9,6 +9,6 @@ type Comics struct {
 	CreatedAt time.Time `json:"-"`
 	Title     string    `json:"title"`
 	Year      int32     `json:"year,omitempty"`
-	Pages     int32     `json:"pages,omitempty"`
+	Pages     Pages     `json:"pages,omitempty"`
 	Version   int32     `json:"version"`
 }

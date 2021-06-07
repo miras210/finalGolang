@@ -13,6 +13,7 @@ import (
 // generate this automatically at build time, but for now we'll just store the version
 // number as a hard-coded global constant.
 const version = "1.0.0"
+
 // Define a config struct to hold all the configuration settings for our application.
 // For now, the only configuration settings will be the network port that we want the
 // server to listen on, and the name of the current operating environment for the
@@ -20,8 +21,9 @@ const version = "1.0.0"
 // configuration settings from command-line flags when the application starts.
 type config struct {
 	port int
-	env string
+	env  string
 }
+
 // Define an application struct to hold the dependencies for our HTTP handlers, helpers,
 // and middleware. At the moment this only contains a copy of the config struct and a
 // logger, but it will grow to include a lot more as our build progresses.
@@ -41,25 +43,22 @@ func main() {
 	flag.Parse()
 	// Initialize a new logger which writes messages to the standard out stream,
 	// prefixed with the current date and time.
-	logger := log.New(os.Stdout, "", log.Ldate | log.Ltime)
+	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 	// Declare an instance of the application struct, containing the config struct and
 	// the logger.
 	app := &application{
 		config: cfg,
 		logger: logger,
 	}
-	// Declare a new servemux and add a /v1/healthcheck route which dispatches requests
-	// to the healthcheckHandler method (which we will create in a moment).
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/healthcheck", app.healthcheckHandler)
+
 	// Declare a HTTP server with some sensible timeout settings, which listens on the
 	// port provided in the config struct and uses the servemux we created above as the
 	// handler.
 	srv := &http.Server{
-		Addr: fmt.Sprintf(":%d", cfg.port),
-		Handler: mux,
-		IdleTimeout: time.Minute,
-		ReadTimeout: 10 * time.Second,
+		Addr:         fmt.Sprintf(":%d", cfg.port),
+		Handler:      app.routes(),
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
 	// Start the HTTP server.

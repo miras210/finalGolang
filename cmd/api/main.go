@@ -38,7 +38,7 @@ func main() {
 
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://postgres:postgres@localhost:5432/comics?sslmode=disable", "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("COMICS_STORE_DB_DSN"), "PostgreSQL DSN")
 
 	flag.Parse()
 
@@ -57,7 +57,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(err, nil)
 	}
-	migrator, err := migrate.NewWithDatabaseInstance("file:migrations", "postgres", migrationDriver)
+	migrator, err := migrate.NewWithDatabaseInstance("file:migrations", "comics", migrationDriver)
 	if err != nil {
 		logger.Fatal(err, nil)
 	}

@@ -5,11 +5,16 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	_ "github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 )
 
@@ -33,7 +38,7 @@ func main() {
 
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
-	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("COMICS_STORE_DB_DSN"), "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", "postgres://postgres:postgres@localhost:5432/comics?sslmode=disable", "PostgreSQL DSN")
 
 	flag.Parse()
 
@@ -47,6 +52,20 @@ func main() {
 	defer db.Close()
 
 	logger.Printf("database connection pool established")
+
+	migrationDriver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		logger.Fatal(err, nil)
+	}
+	migrator, err := migrate.NewWithDatabaseInstance("file:migrations", "postgres", migrationDriver)
+	if err != nil {
+		logger.Fatal(err, nil)
+	}
+	err = migrator.Up()
+	if err != nil && err != migrate.ErrNoChange {
+		logger.Fatal(err, nil)
+	}
+	logger.Printf("database migrations applied")
 
 	app := &application{
 		config: cfg,

@@ -15,7 +15,7 @@ func (app *application) createComicsHandler(w http.ResponseWriter, r *http.Reque
 	var input struct {
 		Title string     `json:"title"`
 		Year  int32      `json:"year"`
-		Pages data.Pages `json:"runtime"`
+		Pages data.Pages `json:"pages"`
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -35,6 +35,20 @@ func (app *application) createComicsHandler(w http.ResponseWriter, r *http.Reque
 	if data.ValidateComics(v, comics); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
+	}
+
+	err = app.models.Comics.Insert(comics)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/comics/%d", comics.ID))
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"comics": comics}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
 	}
 
 	fmt.Fprintf(w, "%+v\n", input)

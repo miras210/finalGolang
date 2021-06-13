@@ -161,3 +161,22 @@ func (app *application) deleteComicsHandler(w http.ResponseWriter, r *http.Reque
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) showAllComicsHandler(w http.ResponseWriter, r *http.Request) {
+
+	comics, err := app.models.Comics.GetAll()
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"comics": comics}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/miras210/finalGolang/internal/validator"
+	"log"
 	"time"
 )
 
@@ -125,4 +126,52 @@ func (m ComicsModel) Delete(id int64) error {
 		return ErrRecordNotFound
 	}
 	return nil
+}
+
+func (m ComicsModel) GetAll() (*[]Comics, error) {
+	// Define the SQL query for retrieving the comics data.
+	query := `SELECT id, created_at, title, year, pages, version
+			FROM comics`
+	// Declare a Movie struct to hold the data returned by the query.
+	var comics Comics
+	var comicses []Comics
+	rows, err := m.DB.Query(query)
+	defer rows.Close()
+	// Handle any errors. If there was no matching comics found, Scan() will return
+	// a sql.ErrNoRows error. We check for this and return our custom ErrRecordNotFound
+	// error instead.
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	for rows.Next() {
+		err := rows.Scan(
+			&comics.ID,
+			&comics.CreatedAt,
+			&comics.Title,
+			&comics.Year,
+			&comics.Pages,
+			&comics.Version,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		comicses = append(comicses, Comics{
+			ID:        comics.ID,
+			CreatedAt: comics.CreatedAt,
+			Title:     comics.Title,
+			Year:      comics.Year,
+			Pages:     comics.Pages,
+			Version:   comics.Version,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+	return &comicses, nil
 }

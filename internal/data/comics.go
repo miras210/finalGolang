@@ -1,6 +1,7 @@
 package data
 
 import (
+	"database/sql"
 	"github.com/miras210/finalGolang/internal/validator"
 	"time"
 )
@@ -25,4 +26,33 @@ func ValidateComics(v *validator.Validator, comics *Comics) {
 	v.Check(comics.Pages != 0, "pages", "must be provided")
 	v.Check(comics.Pages > 0, "pages", "must be a positive integer")
 
+}
+
+type ComicsModel struct {
+	DB *sql.DB
+}
+
+// Add a placeholder method for inserting a new record in the movies table.
+func (m ComicsModel) Insert(comics *Comics) error {
+	query := `INSERT INTO comics (title, year, pages)
+			VALUES ($1, $2, $3)
+			RETURNING id, created_at, version`
+
+	args := []interface{}{comics.Title, comics.Year, comics.Pages}
+	return m.DB.QueryRow(query, args...).Scan(&comics.ID, &comics.CreatedAt, &comics.Version)
+}
+
+// Add a placeholder method for fetching a specific record from the movies table.
+func (m ComicsModel) Get(id int64) (*Comics, error) {
+	return nil, nil
+}
+
+// Add a placeholder method for updating a specific record in the movies table.
+func (m ComicsModel) Update(comics *Comics) error {
+	return nil
+}
+
+// Add a placeholder method for deleting a specific record from the movies table.
+func (m ComicsModel) Delete(id int64) error {
+	return nil
 }

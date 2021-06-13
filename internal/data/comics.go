@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"errors"
 	"github.com/miras210/finalGolang/internal/validator"
 	"time"
 )
@@ -44,12 +45,55 @@ func (m ComicsModel) Insert(comics *Comics) error {
 
 // Add a placeholder method for fetching a specific record from the movies table.
 func (m ComicsModel) Get(id int64) (*Comics, error) {
-	return nil, nil
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+	// Define the SQL query for retrieving the comics data.
+	query := `SELECT id, created_at, title, year, pages, version
+			FROM comics
+			WHERE id = $1`
+	// Declare a Movie struct to hold the data returned by the query.
+	var comics Comics
+	err := m.DB.QueryRow(query, id).Scan(
+		&comics.ID,
+		&comics.CreatedAt,
+		&comics.Title,
+		&comics.Year,
+		&comics.Pages,
+		&comics.Version,
+	)
+	// Handle any errors. If there was no matching comics found, Scan() will return
+	// a sql.ErrNoRows error. We check for this and return our custom ErrRecordNotFound
+	// error instead.
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	// Otherwise, return a pointer to the Movie struct.
+	return &comics, nil
 }
 
 // Add a placeholder method for updating a specific record in the movies table.
 func (m ComicsModel) Update(comics *Comics) error {
-	return nil
+	query := `UPDATE comics
+			SET title = $1, year = $2, pages = $3, version = version + 1
+			WHERE id = $4
+			RETURNING version`
+	// Create an args slice containing the values for the placeholder parameters.
+	args := []interface{}{
+		comics.Title,
+		comics.Year,
+		comics.Pages,
+		comics.ID,
+	}
+	// Use the QueryRow() method to execute the query, passing in the args slice as a
+	// variadic parameter and scanning the new version value into the movie struct.
+	return m.DB.QueryRow(query, args...).Scan(&comics.Version)
+
 }
 
 // Add a placeholder method for deleting a specific record from the movies table.

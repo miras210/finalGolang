@@ -1,11 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/miras210/finalGolang/internal/data"
 	"github.com/miras210/finalGolang/internal/validator"
 	"net/http"
-	"time"
 )
 
 // Add a createComicsHandler for the "POST /v1/comics" endpoint. For now we simply
@@ -62,14 +62,74 @@ func (app *application) showComicsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	comics := data.Comics{
-		ID:        id,
-		CreatedAt: time.Now(),
-		Title:     "Batman",
-		Pages:     165,
-		Version:   1,
+	comics, err := app.models.Comics.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
 	}
 
+	err = app.writeJSON(w, http.StatusOK, envelope{"comics": comics}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) updateComicsHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract the comics ID from the URL.
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+	// Fetch the existing comics record from the database, sending a 404 Not Found
+	// response to the client if we couldn't find a matching record.
+	comics, err := app.models.Comics.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	// Declare an input struct to hold the expected data from the client.
+	var input struct {
+		Title string     `json:"title"`
+		Year  int32      `json:"year"`
+		Pages data.Pages `json:"pages"`
+	}
+	// Read the JSON request body data into the input struct.
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+	// Copy the values from the request body to the appropriate fields of the movie
+	// record.
+	comics.Title = input.Title
+	comics.Year = input.Year
+	comics.Pages = input.Pages
+	// Validate the updated movie record, sending the client a 422 Unprocessable Entity
+	// response if any checks fail.
+	v := validator.New()
+	if data.ValidateComics(v, comics); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+	// Pass the updated movie record to our new Update() method.
+	err = app.models.Comics.Update(comics)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	// Write the updated movie record in a JSON response.
 	err = app.writeJSON(w, http.StatusOK, envelope{"comics": comics}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)

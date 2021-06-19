@@ -6,6 +6,7 @@ import (
 	"github.com/miras210/finalGolang/internal/data"
 	"github.com/miras210/finalGolang/internal/validator"
 	"net/http"
+	"strconv"
 )
 
 // Add a createComicsHandler for the "POST /v1/comics" endpoint. For now we simply
@@ -99,11 +100,20 @@ func (app *application) updateComicsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// If the request contains a X-Expected-Version header, verify that the movie
+	// version in the database matches the expected version specified in the header.
+	if r.Header.Get("X-Expected-Version") != "" {
+		if strconv.FormatInt(int64(comics.Version), 32) != r.Header.Get("X-Expected-Version") {
+			app.editConflictResponse(w, r)
+			return
+		}
+	}
+
 	// Declare an input struct to hold the expected data from the client.
 	var input struct {
-		Title string     `json:"title"`
-		Year  int32      `json:"year"`
-		Pages data.Pages `json:"pages"`
+		Title *string     `json:"title"`
+		Year  *int32      `json:"year"`
+		Pages *data.Pages `json:"pages"`
 	}
 	// Read the JSON request body data into the input struct.
 	err = app.readJSON(w, r, &input)
@@ -113,9 +123,15 @@ func (app *application) updateComicsHandler(w http.ResponseWriter, r *http.Reque
 	}
 	// Copy the values from the request body to the appropriate fields of the movie
 	// record.
-	comics.Title = input.Title
-	comics.Year = input.Year
-	comics.Pages = input.Pages
+	if input.Title != nil {
+		comics.Title = *input.Title
+	}
+	if input.Year != nil {
+		comics.Year = *input.Year
+	}
+	if input.Pages != nil {
+		comics.Pages = *input.Pages
+	}
 	// Validate the updated movie record, sending the client a 422 Unprocessable Entity
 	// response if any checks fail.
 	v := validator.New()
@@ -124,10 +140,18 @@ func (app *application) updateComicsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	// Pass the updated movie record to our new Update() method.
+	// Intercept any ErrEditConflict error and call the new editConflictResponse()
+	// helper.
 	err = app.models.Comics.Update(comics)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
+
 	}
 	// Write the updated movie record in a JSON response.
 	err = app.writeJSON(w, http.StatusOK, envelope{"comics": comics}, nil)

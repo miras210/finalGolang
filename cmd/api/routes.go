@@ -16,7 +16,7 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodPost, "/v1/comics", app.createComicsHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/comics", app.showAllComicsHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/comics/:id", app.showComicsHandler)
-	router.HandlerFunc(http.MethodPut, "/v1/comics/:id", app.updateComicsHandler)
+	router.HandlerFunc(http.MethodPatch, "/v1/comics/:id", app.updateComicsHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/comics/:id", app.deleteComicsHandler)
 	// Return the httprouter instance.
 	return router

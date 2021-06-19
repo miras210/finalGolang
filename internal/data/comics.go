@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/miras210/finalGolang/internal/validator"
@@ -41,7 +42,12 @@ func (m ComicsModel) Insert(comics *Comics) error {
 			RETURNING id, created_at, version`
 
 	args := []interface{}{comics.Title, comics.Year, comics.Pages}
-	return m.DB.QueryRow(query, args...).Scan(&comics.ID, &comics.CreatedAt, &comics.Version)
+
+	// Create a context with a 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&comics.ID, &comics.CreatedAt, &comics.Version)
 }
 
 // Add a placeholder method for fetching a specific record from the movies table.
@@ -55,7 +61,17 @@ func (m ComicsModel) Get(id int64) (*Comics, error) {
 			WHERE id = $1`
 	// Declare a Movie struct to hold the data returned by the query.
 	var comics Comics
-	err := m.DB.QueryRow(query, id).Scan(
+
+	// Use the context.WithTimeout() function to create a context.Context which carries a
+	// 3-second timeout deadline. Note that we're using the empty context.Background()
+	// as the 'parent' context.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+
+	// Importantly, use defer to make sure that we cancel the context before the Get()
+	// method returns.
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&comics.ID,
 		&comics.CreatedAt,
 		&comics.Title,
@@ -82,7 +98,7 @@ func (m ComicsModel) Get(id int64) (*Comics, error) {
 func (m ComicsModel) Update(comics *Comics) error {
 	query := `UPDATE comics
 			SET title = $1, year = $2, pages = $3, version = version + 1
-			WHERE id = $4
+			WHERE id = $4 AND version = $5
 			RETURNING version`
 	// Create an args slice containing the values for the placeholder parameters.
 	args := []interface{}{
@@ -90,11 +106,26 @@ func (m ComicsModel) Update(comics *Comics) error {
 		comics.Year,
 		comics.Pages,
 		comics.ID,
+		comics.Version,
 	}
-	// Use the QueryRow() method to execute the query, passing in the args slice as a
-	// variadic parameter and scanning the new version value into the movie struct.
-	return m.DB.QueryRow(query, args...).Scan(&comics.Version)
 
+	// Create a context with a 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Execute the SQL query. If no matching row could be found, we know the movie
+	// version has changed (or the record has been deleted) and we return our custom
+	// ErrEditConflict error.
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&comics.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+	return nil
 }
 
 // Add a placeholder method for deleting a specific record from the movies table.
@@ -106,10 +137,15 @@ func (m ComicsModel) Delete(id int64) error {
 	// Construct the SQL query to delete the record.
 	query := `DELETE FROM comics
 			WHERE id = $1`
+
+	// Create a context with a 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	// Execute the SQL query using the Exec() method, passing in the id variable as
 	// the value for the placeholder parameter. The Exec() method returns a sql.Result
 	// object.
-	result, err := m.DB.Exec(query, id)
+	result, err := m.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}

@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/miras210/finalGolang/internal/validator"
-	"log"
 	"time"
 )
 
@@ -164,50 +164,64 @@ func (m ComicsModel) Delete(id int64) error {
 	return nil
 }
 
-func (m ComicsModel) GetAll() (*[]Comics, error) {
+func (m ComicsModel) GetAll(title string, year int, filters Filters) ([]*Comics, Metadata, error) {
 	// Define the SQL query for retrieving the comics data.
-	query := `SELECT id, created_at, title, year, pages, version
-			FROM comics`
-	// Declare a Movie struct to hold the data returned by the query.
-	var comics Comics
-	var comicses []Comics
-	rows, err := m.DB.Query(query)
-	defer rows.Close()
-	// Handle any errors. If there was no matching comics found, Scan() will return
-	// a sql.ErrNoRows error. We check for this and return our custom ErrRecordNotFound
-	// error instead.
+	query := fmt.Sprintf(
+		`
+		SELECT count(*) OVER(), id, created_at, title, year, pages, version
+		FROM comics
+		WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
+		AND (year = $2 OR $2 = -1)
+		ORDER BY %s %s, id ASC
+		LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []interface{}{title, year, filters.limit(), filters.offset()}
+
+	// Use QueryContext() to execute the query. This returns a sql.Rows resultset
+	// containing the result.
+	rows, err := m.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrRecordNotFound
-		default:
-			return nil, err
-		}
+		return nil, Metadata{}, err
 	}
+	// Importantly, defer a call to rows.Close() to ensure that the resultset is closed
+	// before GetAll() returns.
+	defer rows.Close()
+
+	totalRecords := 0
+	// Initialize an empty slice to hold the movie data.
+	comics := []*Comics{}
+	// Use rows.Next to iterate through the rows in the resultset.
 	for rows.Next() {
+		// Initialize an empty Movie struct to hold the data for an individual movie.
+		var comic Comics
+		// Scan the values from the row into the Movie struct. Again, note that we're
+		// using the pq.Array() adapter on the genres field here.
 		err := rows.Scan(
-			&comics.ID,
-			&comics.CreatedAt,
-			&comics.Title,
-			&comics.Year,
-			&comics.Pages,
-			&comics.Version,
+			&totalRecords,
+			&comic.ID,
+			&comic.CreatedAt,
+			&comic.Title,
+			&comic.Year,
+			&comic.Pages,
+			&comic.Version,
 		)
 		if err != nil {
-			log.Fatal(err)
+			return nil, Metadata{}, err
 		}
+		// Add the Movie struct to the slice.
+		comics = append(comics, &comic)
+	}
+	// When the rows.Next() loop has finished, call rows.Err() to retrieve any error
+	// that was encountered during the iteration.
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
 
-		comicses = append(comicses, Comics{
-			ID:        comics.ID,
-			CreatedAt: comics.CreatedAt,
-			Title:     comics.Title,
-			Year:      comics.Year,
-			Pages:     comics.Pages,
-			Version:   comics.Version,
-		})
-	}
-	if err := rows.Err(); err != nil {
-		log.Fatal(err)
-	}
-	return &comicses, nil
+	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+
+	// If everything went OK, then return the slice of movies.
+	return comics, metadata, nil
 }

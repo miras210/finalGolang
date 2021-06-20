@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"expvar"
 	"flag"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -10,6 +11,7 @@ import (
 	"github.com/miras210/finalGolang/internal/jsonlog"
 	"github.com/miras210/finalGolang/internal/mailer"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +45,6 @@ type config struct {
 		password string
 		sender   string
 	}
-
 	cors struct {
 		trustedOrigins []string
 	}
@@ -109,6 +110,21 @@ func main() {
 		logger.PrintFatal(err, nil)
 	}
 	logger.PrintInfo("database migrations applied", nil)
+
+	expvar.NewString("version").Set(version)
+
+	// Publish the number of active goroutines.
+	expvar.Publish("goroutines", expvar.Func(func() interface{} {
+		return runtime.NumGoroutine()
+	}))
+	// Publish the database connection pool statistics.
+	expvar.Publish("database", expvar.Func(func() interface{} {
+		return db.Stats()
+	}))
+	// Publish the current Unix timestamp.
+	expvar.Publish("timestamp", expvar.Func(func() interface{} {
+		return time.Now().Unix()
+	}))
 
 	app := &application{
 		config: cfg,

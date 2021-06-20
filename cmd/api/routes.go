@@ -14,11 +14,11 @@ func (app *application) routes() http.Handler {
 
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthcheckHandler)
 
-	router.HandlerFunc(http.MethodPost, "/v1/comics", app.requireActivatedUser(app.createComicsHandler))
-	router.HandlerFunc(http.MethodGet, "/v1/comics", app.requireActivatedUser(app.listComicsHandler))
-	router.HandlerFunc(http.MethodGet, "/v1/comics/:id", app.requireActivatedUser(app.showComicsHandler))
-	router.HandlerFunc(http.MethodPatch, "/v1/comics/:id", app.requireActivatedUser(app.updateComicsHandler))
-	router.HandlerFunc(http.MethodDelete, "/v1/comics/:id", app.requireActivatedUser(app.deleteComicsHandler))
+	router.HandlerFunc(http.MethodPost, "/v1/comics", app.requirePermission("comics:write", app.createComicsHandler))
+	router.HandlerFunc(http.MethodGet, "/v1/comics", app.requirePermission("comics:read", app.listComicsHandler))
+	router.HandlerFunc(http.MethodGet, "/v1/comics/:id", app.requirePermission("comics:read", app.showComicsHandler))
+	router.HandlerFunc(http.MethodPatch, "/v1/comics/:id", app.requirePermission("comics:write", app.updateComicsHandler))
+	router.HandlerFunc(http.MethodDelete, "/v1/comics/:id", app.requirePermission("comics:write", app.deleteComicsHandler))
 
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.registerUserHandler)
 	router.HandlerFunc(http.MethodPut, "/v1/users/activated", app.activateUserHandler)

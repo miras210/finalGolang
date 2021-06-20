@@ -56,12 +56,9 @@ func (l *Logger) PrintFatal(err error, properties map[string]string) {
 }
 
 func (l *Logger) print(level Level, message string, properties map[string]string) (int, error) {
-	// If the severity level of the log entry is below the minimum severity for the
-	// logger, then return with no further action.
 	if level < l.minLevel {
 		return 0, nil
 	}
-	// Declare an anonymous struct holding the data for the log entry.
 	aux := struct {
 		Level      string            `json:"level"`
 		Time       string            `json:"time"`
@@ -74,25 +71,16 @@ func (l *Logger) print(level Level, message string, properties map[string]string
 		Message:    message,
 		Properties: properties,
 	}
-	// Include a stack trace for entries at the ERROR and FATAL levels.
 	if level >= LevelError {
 		aux.Trace = string(debug.Stack())
 	}
-	// Declare a line variable for holding the actual log entry text.
 	var line []byte
-	// Marshal the anonymous struct to JSON and store it in the line variable. If there
-	// was a problem creating the JSON, set the contents of the log entry to be that
-	// plain-text error message instead.
 	line, err := json.Marshal(aux)
 	if err != nil {
 		line = []byte(LevelError.String() + ": unable to marshal log message:" + err.Error())
 	}
-	// Lock the mutex so that no two writes to the output destination cannot happen
-	// concurrently. If we don't do this, it's possible that the text for two or more
-	// log entries will be intermingled in the output.
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	// Write the log entry followed by a newline.
 	return l.out.Write(append(line, '\n'))
 }
 

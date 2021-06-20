@@ -7,14 +7,13 @@ import (
 )
 
 func (app *application) routes() http.Handler {
-	// Initialize a new httprouter router instance.
 	router := httprouter.New()
 
 	router.NotFound = http.HandlerFunc(app.notFoundResponse)
 	router.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowedResponse)
 
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthcheckHandler)
-	//
+
 	router.HandlerFunc(http.MethodPost, "/v1/comics", app.requirePermission("comics:write", app.createComicsHandler))
 	router.HandlerFunc(http.MethodGet, "/v1/comics", app.requirePermission("comics:read", app.listComicsHandler))
 	router.HandlerFunc(http.MethodGet, "/v1/comics/:id", app.requirePermission("comics:read", app.showComicsHandler))
@@ -28,6 +27,5 @@ func (app *application) routes() http.Handler {
 
 	router.Handler(http.MethodGet, "/debug/vars", expvar.Handler())
 
-	// Return the httprouter instance.
 	return app.metrics(app.recoverPanic(app.enableCORS(app.rateLimit(app.authenticate(router)))))
 }

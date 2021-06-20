@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func (app *application) routes() *httprouter.Router {
+func (app *application) routes() http.Handler {
 	// Initialize a new httprouter router instance.
 	router := httprouter.New()
 
@@ -19,5 +19,5 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodPatch, "/v1/comics/:id", app.updateComicsHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/comics/:id", app.deleteComicsHandler)
 	// Return the httprouter instance.
-	return router
+	return app.recoverPanic(router)
 }

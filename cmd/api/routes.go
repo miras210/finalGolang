@@ -19,5 +19,5 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/v1/comics/:id", app.updateComicsHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/comics/:id", app.deleteComicsHandler)
 	// Return the httprouter instance.
-	return app.recoverPanic(router)
+	return app.recoverPanic(app.rateLimit(router))
 }

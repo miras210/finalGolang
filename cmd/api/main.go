@@ -113,15 +113,14 @@ func main() {
 
 	expvar.NewString("version").Set(version)
 
-	// Publish the number of active goroutines.
 	expvar.Publish("goroutines", expvar.Func(func() interface{} {
 		return runtime.NumGoroutine()
 	}))
-	// Publish the database connection pool statistics.
+
 	expvar.Publish("database", expvar.Func(func() interface{} {
 		return db.Stats()
 	}))
-	// Publish the current Unix timestamp.
+
 	expvar.Publish("timestamp", expvar.Func(func() interface{} {
 		return time.Now().Unix()
 	}))

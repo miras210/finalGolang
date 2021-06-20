@@ -4,11 +4,13 @@ import (
 	"errors"
 	"expvar"
 	"fmt"
+	"github.com/felixge/httpsnoop"
 	"github.com/miras210/finalGolang/internal/data"
 	"github.com/miras210/finalGolang/internal/validator"
 	"golang.org/x/time/rate"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -251,19 +253,22 @@ func (app *application) metrics(next http.Handler) http.Handler {
 	totalResponsesSent := expvar.NewInt("total_responses_sent")
 	totalProcessingTimeMicroseconds := expvar.NewInt("total_processing_time_μs")
 	// The following code will be run for every request...
+	totalResponsesSentByStatus := expvar.NewMap("total_responses_sent_by_status")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Record the time that we started to process the request.
-		start := time.Now()
-		// Use the Add() method to increment the number of requests received by 1.
+		// Increment the requests received count, like before.
 		totalRequestsReceived.Add(1)
-		// Call the next handler in the chain.
-		next.ServeHTTP(w, r)
-		// On the way back up the middleware chain, increment the number of responses
-		// sent by 1.
+		// Call the httpsnoop.CaptureMetrics() function, passing in the next handler in
+		// the chain along with the existing http.ResponseWriter and http.Request. This
+		// returns the metrics struct that we saw above.
+		metrics := httpsnoop.CaptureMetrics(next, w, r)
+		// Increment the response sent count, like before.
 		totalResponsesSent.Add(1)
-		// Calculate the number of microseconds since we began to process the request,
-		// then increment the total processing time by this amount.
-		duration := time.Now().Sub(start).Microseconds()
-		totalProcessingTimeMicroseconds.Add(duration)
+		// Get the request processing time in microseconds from httpsnoop and increment
+		// the cumulative processing time.
+		totalProcessingTimeMicroseconds.Add(metrics.Duration.Microseconds())
+		// Use the Add() method to increment the count for the given status code by 1.
+		// Note that the expvar map is string-keyed, so we need to use the strconv.Itoa()
+		// function to convert the status code (which is an integer) to a string.
+		totalResponsesSentByStatus.Add(strconv.Itoa(metrics.Code), 1)
 	})
 }
